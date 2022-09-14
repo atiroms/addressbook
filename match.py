@@ -32,23 +32,10 @@ from helper import *
 
 
 ###############################################################################
-# Functions
-###############################################################################
-def replace_address(str_src, l_address_replace):
-    for address_replace in l_address_replace:
-        str_src = str_src.replace(address_replace[0], address_replace[1])
-    return str_src
-
-def delete_clinic(str_src, l_clin_delete):
-    for clin_delete in l_clin_delete:
-        str_src = str_src.replace(clin_delete, '')
-    return str_src
-
-###############################################################################
 # Load and clean data
 ###############################################################################
 # Prepare list A dataframe
-df_src_a = pd.read_csv(os.path.join(p_data, 'src', 'listA.csv'))
+df_src_a = pd.read_csv(os.path.join(p_data, 'match', 'src', 'listA.csv'))
 df_src_a.columns = ['id', 'send', 'name_corp', 'name_clinic', 'name_dr', 'pcode', 'address1', 'address2', 'alumnus', 'ref_history']
 
 l_clin_a = []
@@ -74,19 +61,19 @@ df_src_a['clin_a'] = l_clin_a
 df_src_a['clin_full_a'] = l_clin_full_a
 df_src_a['address_a'] = l_address_a
 
-l_idx_maybe_in_tokyo = []
+l_idx_a_maybe_in_tokyo = []
 for idx_a, row_a in df_src_a.iterrows():
     address1 = row_a['address1']
     if type(address1) == str:
         if address1.startswith('東京都'):
-            l_idx_maybe_in_tokyo.append(idx_a)
+            l_idx_a_maybe_in_tokyo.append(idx_a)
     else:
-        l_idx_maybe_in_tokyo.append(idx_a)
-l_idx_not_in_tokyo = [idx for idx in df_src_a.index.tolist() if idx not in l_idx_maybe_in_tokyo]
-df_a = df_src_a.loc[l_idx_maybe_in_tokyo,:]
+        l_idx_a_maybe_in_tokyo.append(idx_a)
+l_idx_a_not_in_tokyo = [idx for idx in df_src_a.index.tolist() if idx not in l_idx_a_maybe_in_tokyo]
+df_a = df_src_a.loc[l_idx_a_maybe_in_tokyo,:]
 
 # Prepare list B dataframe
-df_src_b = pd.read_csv(os.path.join(p_data, 'src', 'listB.csv'))
+df_src_b = pd.read_csv(os.path.join(p_data, 'match', 'src', 'listB.csv'))
 df_src_b.columns = ['id', 'name_clinic', 'pcode', 'address', 'tel', 'misc']
 df_src_b = df_src_b.loc[~np.isnan(df_src_b['id']), :]
 
@@ -164,5 +151,5 @@ df_similarity_max_b = pd.concat(l_similarity_max_b)
 ###############################################################################
 # Save result
 ###############################################################################
-df_similarity_max_a.to_csv(os.path.join(p_data,'dst','listA_match.csv'),index = False)
-df_similarity_max_b.to_csv(os.path.join(p_data,'dst','listB_match.csv'),index = False)
+df_similarity_max_a.to_csv(os.path.join(p_data, 'match', 'dst','listA_match.csv'),index = False)
+df_similarity_max_b.to_csv(os.path.join(p_data, 'match', 'dst','listB_match.csv'),index = False)
