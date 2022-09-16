@@ -36,7 +36,7 @@ from helper import *
 ###############################################################################
 # Prepare list A match dataframe
 df_match_a = pd.read_csv(os.path.join(p_data, 'merge', 'src', 'listA_match.csv'))
-
+df_match_a.loc[df_match_a['match'] != False, 'match'] = True
 
 # Prepare list A dataframe
 df_src_a = pd.read_csv(os.path.join(p_data, 'match', 'src', 'listA.csv'))
@@ -95,3 +95,20 @@ for idx_b, row_b in df_src_b.iterrows():
 df_src_b['clin_b'] = l_clin_b
 df_src_b['clin_full_b'] = l_clin_full_b
 df_src_b['address_b'] = l_address_b
+
+
+###############################################################################
+# Merge data
+###############################################################################
+l_idx_a_match = df_match_a.loc[df_match_a['match'] == True,'idx_a'].tolist()
+l_idx_b_match = df_match_a.loc[df_match_a['match'] == True,'idx_b'].tolist()
+
+# A and B
+df_tmp_a = df_src_a.loc[df_src_a['id'].isin(l_idx_a_match),:]
+df_tmp_a.index = [i for i in range(df_tmp_a.shape[0])]
+df_tmp_b = df_src_b.loc[df_src_b['id'].isin(l_idx_b_match),:]
+df_tmp_b.index = [i for i in range(df_tmp_b.shape[0])]
+
+# A not B (not in Tokyo)
+
+# B not A
