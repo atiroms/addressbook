@@ -9,7 +9,8 @@ import os, difflib, re, datetime
 # Parameters
 ###############################################################################
 l_clin_delete = [' ']
-l_address_replace = [[' ', ''], ['ー', '-'], ['－', '-'], ['東京都', ''],  ['千葉県', ''], ['埼玉県', ''], ['神奈川県', ''],
+#l_address_replace = [[' ', ''], ['ー', '-'], ['－', '-'], ['東京都', ''],  ['千葉県', ''], ['埼玉県', ''], ['神奈川県', ''],
+l_address_replace = [[' ', ''], ['－', '-'], ['東京都', ''],  ['千葉県', ''], ['埼玉県', ''], ['神奈川県', ''],
                      ['０', '0'], ['１', '1'], ['２', '2'], ['３', '3'], ['４', '4'], ['５', '5'], ['６', '6'], ['７', '7'], ['８', '8'], ['９', '9']]
 
 
@@ -35,8 +36,16 @@ from helper import *
 # Load and clean data
 ###############################################################################
 # Prepare list A match dataframe
-df_match_a = pd.read_csv(os.path.join(p_data, 'merge', 'src', 'listA_match.csv'))
-df_match_a.loc[df_match_a['match'] != False, 'match'] = True
+df_match_a = pd.read_csv(os.path.join(p_data, 'check_dpl', 'dst', 'listA_match_check3.csv'))
+df_match_a = df_match_a[~np.isnan(df_match_a['idx_a'])]
+# Idx of list A to be deleted
+l_idx_a_delete = df_match_a.loc[df_match_a['delete'] == True, 'idx_a'].to_list()
+# Dataframe of matched clinics
+df_match_checked = df_match_a[(df_match_a['match'] != False) & (df_match_a['delete'] != True)]
+# Idx of list A with match in list B
+l_idx_a_match = df_match_a[(df_match_a['match'] != False) & (df_match_a['delete'] != True)]['idx_a'].tolist()
+# Idx of list B with match in list B
+l_idx_b_match = df_match_a[(df_match_a['match'] != False) & (df_match_a['delete'] != True)]['idx_b'].tolist()
 
 # Prepare list A dataframe
 df_src_a = pd.read_csv(os.path.join(p_data, 'match', 'src', 'listA.csv'))
@@ -100,15 +109,49 @@ df_src_b['address_b'] = l_address_b
 ###############################################################################
 # Merge data
 ###############################################################################
-l_idx_a_match = df_match_a.loc[df_match_a['match'] == True,'idx_a'].tolist()
-l_idx_b_match = df_match_a.loc[df_match_a['match'] == True,'idx_b'].tolist()
-
 # A and B
-df_tmp_a = df_src_a.loc[df_src_a['id'].isin(l_idx_a_match),:]
-df_tmp_a.index = [i for i in range(df_tmp_a.shape[0])]
-df_tmp_b = df_src_b.loc[df_src_b['id'].isin(l_idx_b_match),:]
-df_tmp_b.index = [i for i in range(df_tmp_b.shape[0])]
+df_a_and_b = df_match_checked
+df_a_and_b['source'] = 'A_and_B'
+df_a_and_b = df_a_and_b[['source','idx_a','idx_b']]
+df_tmp_a = df_src_a
+df_tmp_a['idx_a'] = df_tmp_a.index
+df_tmp_a = df_tmp_a[['idx_a', 'clin_full_a', 'pcode', 'address_a','name_dr','alumnus','ref_history','send']]
+df_tmp_a.columns = ['idx_a', 'a_clinic', 'a_pcode', 'a_address', 'a_name_dr', 'a_alumnus', 'a_refhist', 'a_send']
+df_tmp_b = df_src_b
+df_tmp_b['idx_b'] = df_tmp_b.index
+df_tmp_b = df_tmp_b[['idx_b', 'clin_full_b', 'pcode', 'address_b','tel']]
+df_tmp_b.columns = ['idx_b', 'b_clinic', 'pcode', 'address_b','tel']
+df_a_and_b = pd.merge(df_a_and_b, df_tmp_a, how = 'left', on = 'idx_a')
+df_a_and_b = pd.merge(df_a_and_b, df_tmp_b, how = 'left', on = 'idx_b')
 
-# A not B (not in Tokyo)
+# A not B
+l_idx_a_not_b = df_src_a.index.tolist()
+l_idx_a_not_b = [idx_a for idx_a in l_idx_a_not_b if idx_a not in l_idx_a_match]
+l_idx_a_not_b = [idx_a for idx_a in l_idx_a_not_b if idx_a not in l_idx_a_delete]
+df_a_not_b = df_src_a
+df_a_not_b['source'] = 'A_not_B'
+df_a_not_b['idx_a'] = df_a_not_b.index
+df_a_not_b = df_a_not_b.loc[df_a_not_b['idx_a'].isin(l_idx_a_not_b),['source','idx_a', 'clin_full_a', 'pcode', 'address_a','name_dr','alumnus','ref_history','send']]
+df_a_not_b.columns = ['source','idx_a', 'a_clinic', 'a_pcode', 'a_address', 'a_name_dr', 'a_alumnus', 'a_refhist', 'a_send']
 
 # B not A
+l_idx_b_not_a = df_src_b.index.tolist()
+l_idx_b_not_a = [idx_b for idx_b in l_idx_b_not_a if idx_b not in l_idx_b_match]
+df_b_not_a = df_src_b
+df_b_not_a['source'] = 'B_not_A'
+df_b_not_a['idx_b'] = df_b_not_a.index
+df_b_not_a = df_b_not_a.loc[df_b_not_a['idx_b'].isin(l_idx_b_not_a),['source','idx_b', 'clin_full_b', 'pcode', 'address_b','tel']]
+df_b_not_a.columns = ['source','idx_b', 'b_clinic', 'pcode', 'address_b','tel']
+
+# Concat
+df_concat = pd.concat([df_a_and_b, df_a_not_b, df_b_not_a], axis = 0)
+df_concat.index = [i for i in range(len(df_concat))]
+
+
+###############################################################################
+# Save data
+###############################################################################
+df_a_and_b.to_csv(os.path.join(p_data, 'merge', 'dst','result_A_and_B.csv'),index = False)
+df_a_not_b.to_csv(os.path.join(p_data, 'merge', 'dst','result_A_not_B.csv'),index = False)
+df_b_not_a.to_csv(os.path.join(p_data, 'merge', 'dst','result_B_not_A.csv'),index = False)
+df_concat.to_csv(os.path.join(p_data, 'merge', 'dst','result_concat.csv'),index = False)
